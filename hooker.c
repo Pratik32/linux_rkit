@@ -43,6 +43,7 @@ int hookme(void) {
 	return 0;
 }
 
+//includes sample hook.
 int init_hooker(void) {
 	printk("[%s] %s\n", MY_MODULE, __FUNCTION__);
 	unsigned long addr = get_sym_addr("memfs_lookup");
@@ -66,22 +67,19 @@ void hook(void *orig, void* new) {
 	unsigned long cr0;
 	struct hook *hook_sym;
 	unsigned char orig_code[OP_SIZE], new_code[OP_SIZE];
-	/*#if defined(_CONFIG_X86_)
+	#if defined(_CONFIG_X86_)
 		memcpy(new_code, "\x68\x00\x00\x00\x00\xc3", OP_SIZE);
 		DEBUG("X86 : Hooking function 0x%p with 0x%p\n", orig, new);
 		*(unsigned long *) &new_code[1] = (unsigned long) new;
-    #elif defined(_CONFIG_X86_64_)*/
+    #elif defined(_CONFIG_X86_64_)
 		memcpy(new_code, "\x48\xb8\x00\x00\x00\x00\x00\x00\x00\x00\xff\xe0", OP_SIZE);
 		DEBUG("X86_64 : Hooking function 0x%p with 0x%p\n", orig, new);
 		*(unsigned long *) &new_code[2] = (unsigned long) new;
-    //#endif
+    #endif
 	memcpy(orig_code, orig, OP_SIZE);
 	cr0 = disable_write_prot();
 	memcpy(orig, new_code, OP_SIZE);
 	enable_write_prot(cr0);
-	DEBUG("[%s] new opcodes are : %x %x %x %x", MY_MODULE, ((unsigned char*)orig)[0], ((unsigned char*)orig)[1],
-				((unsigned char*)orig)[10], ((unsigned char*)orig)[11]);
-
 	hook_sym = kmalloc(sizeof(struct hook), GFP_KERNEL);
 	if(hook_sym == NULL) {
 		return;
@@ -122,6 +120,7 @@ int init_list_fs_hooked(void) {
 	return 0;
 }
 
+//sample hook.
 struct dentry* memfs_lookup_hooked(struct inode *dir, struct dentry *dentry,
 									unsigned int flags) {
 	DEBUG("[%s] memfs_lookup hooked filename = %s\n", MY_MODULE, dentry->d_iname);
