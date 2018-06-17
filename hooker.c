@@ -12,18 +12,18 @@
 
 MODULE_LICENSE("GPL");
 
-#define MY_MODULE __this_module.name
-#define CONCAT(fmt)				"[%s]:"fmt
-#define DEBUG(fmt, args...)		printk(CONCAT(fmt), MY_MODULE, ##args)
-
+#define MY_MODULE 			__this_module.name
+#define CONCAT(fmt)			"[%s]:"fmt
+#define DEBUG(fmt, args...)	printk(CONCAT(fmt), MY_MODULE, ##args)
+//#define DEBUG(fmt, args...) 
 #if defined(_CONFIG_X86_)
 	#define OP_SIZE 6
 #else
 	#define OP_SIZE 12
 #endif
 
-#define X86_64_OPCODE	"\x48\xb8\x00\x00\x00\x00\x00\x00\x00\x00\xff\xe0"
-#define X86_OPCODE		"\x68\x00\x00\x00\x00\xc3"
+#define X86_64_OPCODE		"\x48\xb8\x00\x00\x00\x00\x00\x00\x00\x00\xff\xe0"
+#define X86_OPCODE			"\x68\x00\x00\x00\x00\xc3"
 
 void hook(void*, void*);
 void hook_pause(void*);
@@ -35,6 +35,7 @@ struct hook* get_hooked_sym(void *);
 static int init_list_fs_hooked(void);
 void destroy_hooker(void);
 struct dentry* memfs_lookup_hooked(struct inode*, struct dentry*, unsigned int);
+
 LIST_HEAD(hooks);
 
 struct hook {
@@ -48,9 +49,8 @@ struct hook {
 int init_hooker(void) {
 	DEBUG("%s\n", __FUNCTION__);
 	unsigned long addr = get_sym_addr("memfs_lookup");
-	DEBUG("[%s] addr : 0x%lx\n", MY_MODULE, addr);
 	if(!addr) {
-		DEBUG("[%s] Function not found\n", MY_MODULE);
+		DEBUG("Function not found\n");
 		return 0;
 	}
 	void *orig = addr;
@@ -59,7 +59,7 @@ int init_hooker(void) {
 }
 
 void exit_hooker(void) {
-	printk("[%s] Exiting ...\n", MY_MODULE);
+	DEBUG("Exiting ...\n");
 	destroy_hooker();
 }
 
@@ -71,7 +71,7 @@ void destroy_hooker(void) {
 }
 
 void hook(void *orig, void* new) {
-	DEBUG("[%s]:%s\n", MY_MODULE, __FUNCTION__);
+	DEBUG("%s\n", __FUNCTION__);
 	unsigned long cr0;
 	struct hook *hook_sym;
 	unsigned char orig_code[OP_SIZE], new_code[OP_SIZE];
@@ -83,7 +83,7 @@ void hook(void *orig, void* new) {
 		memcpy(new_code, X86_64_OPCODE, OP_SIZE);
 		DEBUG("X86_64 : Hooking function 0x%p with 0x%p\n", orig, new);
 		*(unsigned long *) &new_code[2] = (unsigned long) new;
-    //#endif
+   // #endif
 	memcpy(orig_code, orig, OP_SIZE);
 	cr0 = disable_write_prot();
 	memcpy(orig, new_code, OP_SIZE);
@@ -99,24 +99,24 @@ void hook(void *orig, void* new) {
 }
 
 void hook_pause(void *func) {
-	DEBUG("[%s] pausing hook for 0x%p\n", MY_MODULE, func);
+	DEBUG("pausing hook for 0x%p\n", func);
 	struct hook *hook;
 	hook = get_hooked_sym(func);
 	if(hook == NULL) {
-		DEBUG("[%s] Hook Pause failed\n", MY_MODULE);
+		DEBUG("Hook Pause failed\n");
 	}
 	unsigned long cr0;
 	cr0 = disable_write_prot();
 	memcpy(func, (void*)hook->orig, OP_SIZE);
 	enable_write_prot(cr0);
-	DEBUG("[%s] function hooking pause for 0x%p\n", MY_MODULE, func);
+	DEBUG("function hooking pause for 0x%p\n", func);
 }
 
 void hook_resume(void *func) {
 	struct hook *hook;
 	hook = get_hooked_sym(func);
 	if(hook == NULL) {
-		DEBUG("[%s] Hook Resume failed\n", MY_MODULE);
+		DEBUG("Hook Resume failed\n");
 		return;
 	}
 	unsigned long cr0;
@@ -128,47 +128,47 @@ void hook_resume(void *func) {
 struct hook* get_hooked_sym(void *func) {
 	struct hook *hook;
 	list_for_each_entry(hook, &hooks, list) {
-		DEBUG("[%s] entry : 0x%p\n", MY_MODULE, hook->addr);
+		DEBUG("entry : 0x%p\n", hook->addr);
 		if(hook->addr == func) {
-			DEBUG("[%s] Entry found:0x%p\n", MY_MODULE, hook->addr);
+			DEBUG("Entry found:0x%p\n", hook->addr);
 			break;
 		}
 	}
 	if(!hook || hook->addr != func) {
-		DEBUG("[%s]Entry not find\n", MY_MODULE);
+		DEBUG("Entry not find\n");
 		return NULL;
 	}
 	return hook;
 }
 
 unsigned long disable_write_prot(void) {
-	DEBUG("[%s]Disabling write protection\n", MY_MODULE);
+	DEBUG("Disabling write protection\n");
 	unsigned long cr0;
 	preempt_disable();
 	barrier();
 	cr0 = read_cr0();
 	write_cr0(cr0 & ~X86_CR0_WP);
-	DEBUG("[%s]write protection disabled\n", MY_MODULE);
+	DEBUG("write protection disabled\n");
 	return cr0;
 }
 
 void enable_write_prot(unsigned long cr0) {
-	DEBUG("[%s]Enabling write protection\n", MY_MODULE);
+	DEBUG("Enabling write protection\n");
 	write_cr0(cr0);
 	barrier();
 	preempt_enable();
-	DEBUG("[%s]write protection enabled\n", MY_MODULE);
+	DEBUG("write protection enabled\n");
 }
 
 unsigned long get_sym_addr(char *sym) {
 	unsigned long addr;
 	addr = kallsyms_lookup_name(sym);
-	DEBUG("[%s] symbol:%s addr:0x%lx\n", MY_MODULE, sym, addr);
+	DEBUG("symbol:%s addr:0x%lx\n", sym, addr);
 	return addr;
 }
 
 int init_list_fs_hooked(void) {
-	DEBUG("[%s] init_list_fs hooked.\n", MY_MODULE);
+	DEBUG("init_list_fs hooked.\n");
 	return 0;
 }
 
@@ -176,12 +176,12 @@ int init_list_fs_hooked(void) {
 struct dentry* memfs_lookup_hooked(struct inode *dir, struct dentry *dentry,
 									unsigned int flags) {
 	struct dentry *ret;
-	DEBUG("[%s] memfs_lookup hooked filename = %s\n", MY_MODULE, dentry->d_iname);	
+	DEBUG("memfs_lookup hooked filename = %s\n", dentry->d_iname);	
 	unsigned long addr = get_sym_addr("memfs_lookup");
 	hook_pause((void *)addr);
-	struct dentry * (*memfs_lookup)(struct inode *, struct dentry *,
+	struct dentry * (*memfs_lookup_orig)(struct inode *, struct dentry *,
 														unsigned int) = addr;
-	ret = memfs_lookup(dir, dentry, flags);
+	ret = memfs_lookup_orig(dir, dentry, flags);
 	hook_resume((void *)addr);
 	return ret;
 }
