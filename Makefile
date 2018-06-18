@@ -1,5 +1,6 @@
 obj-m += hooker.o
-#ccflags-y :=--save-temps
+hooker-objs := main.o hooks.o
+
 all:
 	make -C /lib/modules/`uname -r`/build M=`pwd` modules
 clean:
