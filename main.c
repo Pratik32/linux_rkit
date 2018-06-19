@@ -17,15 +17,23 @@ MODULE_LICENSE("GPL");
 #define X86_64_OPCODE		"\x48\xb8\x00\x00\x00\x00\x00\x00\x00\x00\xff\xe0"
 #define X86_OPCODE			"\x68\x00\x00\x00\x00\xc3"
 
+static int major_num;
+static struct class *device_class;
+
+struct file_operations device_fops = {
+	.unlocked_ioctl = device_ioctl,
+	.open  = device_open,
+	.write = device_write,
+	.read  = device_read
+};
+
 void hook(void*, void*);
-void hook_pause(void*);
-void hook_resume(void*);
 unsigned long disable_write_prot(void);
 void enable_write_prot(unsigned long);
-unsigned long get_sym_addr(char *);
 struct hook* get_hooked_sym(void *);
 static int init_list_fs_hooked(void);
 void destroy_hooker(void);
+void register_chardevice(void);
 
 LIST_HEAD(hooks);
 
@@ -45,13 +53,17 @@ int init_hooker(void) {
 		return 0;
 	}
 	void *orig = addr;
-	hook(orig, &memfs_lookup_hooked);
+	//hook(orig, &memfs_lookup_hooked);
+	register_chardevice();
 	return 0;
 }
 
 void exit_hooker(void) {
 	DEBUG("Exiting ...\n");
 	destroy_hooker();
+	device_destroy(device_class, MKDEV(major_num, 0));
+	class_unregister(device_class);
+	class_destroy(device_class);
 }
 
 void destroy_hooker(void) {
@@ -156,6 +168,37 @@ unsigned long get_sym_addr(char *sym) {
 	addr = kallsyms_lookup_name(sym);
 	DEBUG("symbol:%s addr:0x%lx\n", sym, addr);
 	return addr;
+}
+
+void register_chardevice(void) {
+	major_num = register_chrdev(0, "imp_dev", &device_fops);
+	if(major_num < 0) {
+		DEBUG("failed to register the char device major_num : %d\n", major_num);
+		return;
+	}
+	DEBUG("device registered.major_num : %d\n", major_num);
+	device_class = class_create(THIS_MODULE, "imp");
+	device_create(device_class, NULL, MKDEV(major_num, 0), NULL, "imp_dev");
+	DEBUG("device succesfully created\n");
+}
+
+int device_open(struct inode *dir, struct file *file) {
+	DEBUG("opening device file\n");
+	return 0;
+}
+
+ssize_t device_write(struct file* file, const char *data, size_t len,
+							loff_t *offset) {	
+	DEBUG("device_write\n");
+}
+
+ssize_t device_read(struct file* file, char *data, size_t len,
+							loff_t *offset) {
+	DEBUG("device_read\n");
+}
+
+long device_ioctl(struct file* file, unsigned int cmd, unsigned long data) {
+	return 0;
 }
 
 module_init(init_hooker);
