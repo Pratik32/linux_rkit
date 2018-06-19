@@ -47,12 +47,6 @@ struct hook {
 //includes sample hook.
 int init_hooker(void) {
 	DEBUG("%s\n", __FUNCTION__);
-	unsigned long addr = get_sym_addr("memfs_lookup");
-	if(!addr) {
-		DEBUG("Function not found\n");
-		return 0;
-	}
-	void *orig = addr;
 	//hook(orig, &memfs_lookup_hooked);
 	register_chardevice();
 	return 0;
@@ -187,9 +181,18 @@ int device_open(struct inode *dir, struct file *file) {
 	return 0;
 }
 
+void parse_user_io(char *arg, size_t len) {
+	char *func = &arg[1];
+	DEBUG("function to hook : %s\n", func);
+	unsigned long addr = get_sym_addr(func);
+	DEBUG("function %s addr : %lu\n", func, addr);
+	hook((void*)addr, &memfs_lookup_hooked);
+}
+
 ssize_t device_write(struct file* file, const char *data, size_t len,
-							loff_t *offset) {	
-	DEBUG("device_write\n");
+							loff_t *offset) {
+	DEBUG("device write : %s len = %lu off = %lu", data, len, offset);
+	parse_user_io(data, len);
 }
 
 ssize_t device_read(struct file* file, char *data, size_t len,
