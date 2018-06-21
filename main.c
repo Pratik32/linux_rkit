@@ -34,6 +34,7 @@ struct hook* get_hooked_sym(void *);
 static int init_list_fs_hooked(void);
 void destroy_hooker(void);
 void register_chardevice(void);
+void unhook_all(void);
 
 LIST_HEAD(hooks);
 
@@ -54,6 +55,7 @@ int init_hooker(void) {
 
 void exit_hooker(void) {
 	DEBUG("Exiting ...\n");
+	unhook_all();
 	destroy_hooker();
 	device_destroy(device_class, MKDEV(major_num, 0));
 	class_unregister(device_class);
@@ -204,5 +206,15 @@ long device_ioctl(struct file* file, unsigned int cmd, unsigned long data) {
 	return 0;
 }
 
+void unhook_all() {
+	DEBUG("Unhooking all functions in global list\n");
+	struct hook *temp;
+	list_for_each_entry(temp, &hooks, list) {
+		if(temp != NULL) {
+			hook_pause(temp->addr);
+		}
+	}
+	DEBUG("Unhook all done.\n");
+}
 module_init(init_hooker);
 module_exit(exit_hooker);
